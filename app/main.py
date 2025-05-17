@@ -1,18 +1,29 @@
-from fastapi import Depends, FastAPI, Form, HTTPException, Request
+from fastapi import Depends, FastAPI, Form, HTTPException, Request, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordBearer
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
+from starlette.responses import RedirectResponse
 
-from app.database import engine, get_db
-from app.models import models
+from app.database import Base, engine, get_db
 from app.models.models import Book, BookRecord, User
 from app.routes import auth
 from app.security import get_current_user
 
 # Create database tables
-models.Base.metadata.create_all(bind=engine)
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="BookTracker API")
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins for testing
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
@@ -47,19 +58,23 @@ async def dashboard(request: Request, current_user: User = Depends(get_current_u
     )
 
 
-# API endpoints
+# Protected API endpoints - ALL MADE ASYNC
 @app.get("/api/books")
-def get_books(db: Session = Depends(get_db)):
+async def get_books(
+    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
+    # Get all books in the database
     books = db.query(Book).all()
     return books
 
 
 @app.post("/api/books")
-def create_book(
+async def create_book(
     title: str = Form(...),
     author: str = Form(...),
     year: int = Form(None),
     genre: str = Form(None),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     book = Book(title=title, author=author, year=year, genre=genre)
@@ -70,34 +85,58 @@ def create_book(
 
 
 @app.delete("/api/books/{book_id}")
-def delete_book(book_id: int, db: Session = Depends(get_db)):
-    # First, delete any associated records
-    db.query(BookRecord).filter(BookRecord.book_id == book_id).delete()
+async def delete_book(
+    book_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # First check if the user has a record for this book
+    records = (
+        db.query(BookRecord)
+        .filter(BookRecord.book_id == book_id, BookRecord.user_id == current_user.id)
+        .all()
+    )
 
-    # Then delete the book
-    book = db.query(Book).filter(Book.id == book_id).first()
-    if not book:
-        raise HTTPException(status_code=404, detail="Book not found")
+    # Delete user's records for this book
+    for record in records:
+        db.delete(record)
 
-    db.delete(book)
     db.commit()
-
-    return {"message": "Book deleted successfully"}
+    return {"message": "Book removed from your collection"}
 
 
 @app.post("/api/records")
-def create_record(
+async def create_record(
     book_id: int = Form(...),
     rating: float = Form(None),
     review: str = Form(None),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    user = get_current_user(db)
+    # Check if book exists
     book = db.query(Book).filter(Book.id == book_id).first()
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
 
-    record = BookRecord(user_id=user.id, book_id=book_id, rating=rating, review=review)
+    # Check if user already has a record for this book
+    existing_record = (
+        db.query(BookRecord)
+        .filter(BookRecord.user_id == current_user.id, BookRecord.book_id == book_id)
+        .first()
+    )
+
+    if existing_record:
+        # Update existing record
+        existing_record.rating = rating
+        existing_record.review = review
+        db.commit()
+        db.refresh(existing_record)
+        return existing_record
+
+    # Create new record
+    record = BookRecord(
+        user_id=current_user.id, book_id=book_id, rating=rating, review=review
+    )
     db.add(record)
     db.commit()
     db.refresh(record)
@@ -105,7 +144,9 @@ def create_record(
 
 
 @app.get("/api/records")
-def get_records(db: Session = Depends(get_db)):
-    user = get_current_user(db)
-    records = db.query(BookRecord).filter(BookRecord.user_id == user.id).all()
+async def get_records(
+    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
+    # Get the current user's book records
+    records = db.query(BookRecord).filter(BookRecord.user_id == current_user.id).all()
     return records
