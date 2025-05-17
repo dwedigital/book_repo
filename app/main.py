@@ -1,3 +1,5 @@
+from app.config import SECRET_KEY
+
 from fastapi import Depends, FastAPI, Form, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
