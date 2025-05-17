@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-12">
+    <div class="text-center mb-12">
+        <h1 class="text-4xl font-bold text-indigo-700 mb-4">Welcome to BookTracker</h1>
+        <p class="text-xl text-gray-600 mb-8">Track your reading journey, rate books, and keep a personal library of your favorite reads.</p>
+        
+        <div class="flex flex-col sm:flex-row justify-center gap-4 mt-8">
+            <a href="/login" class="bg-indigo-600 text-white px-8 py-3 rounded-lg text-lg font-semibold hover:bg-indigo-700 transition-colors">
+                Log In
+            </a>
+            <a href="/register" class="bg-white text-indigo-600 border-2 border-indigo-600 px-8 py-3 rounded-lg text-lg font-semibold hover:bg-indigo-50 transition-colors">
+                Create Account
+            </a>
+        </div>
+    </div>
+    
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+        <div class="bg-white p-6 rounded-lg shadow-md text-center">
+            <div class="text-indigo-600 mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+            </div>
+            <h3 class="text-xl font-bold mb-2">Track Your Books</h3>
+            <p class="text-gray-600">Keep a record of all the books you've read in your personal digital library.</p>
+        </div>
+        
+        <div class="bg-white p-6 rounded-lg shadow-md text-center">
+            <div class="text-indigo-600 mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                </svg>
+            </div>
+            <h3 class="text-xl font-bold mb-2">Rate & Review</h3>
+            <p class="text-gray-600">Give ratings and write reviews for the books you've read to remember your thoughts.</p>
+        </div>
+        
+        <div class="bg-white p-6 rounded-lg shadow-md text-center">
+            <div class="text-indigo-600 mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+            </div>
+            <h3 class="text-xl font-bold mb-2">Personal Library</h3>
+            <p class="text-gray-600">Build your own personal library and keep track of your reading journey.</p>
+        </div>
+    </div>
+    
+    <div class="bg-indigo-50 rounded-lg p-8">
+        <h2 class="text-2xl font-bold text-center mb-6">How It Works</h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="flex flex-col items-center">
+                <div class="bg-indigo-100 text-indigo-800 rounded-full w-10 h-10 flex items-center justify-center font-bold mb-4">1</div>
+                <h3 class="text-lg font-semibold mb-2">Create an Account</h3>
+                <p class="text-center text-gray-600">Sign up for free and create your personal BookTracker account.</p>
+            </div>
+            
+            <div class="flex flex-col items-center">
+                <div class="bg-indigo-100 text-indigo-800 rounded-full w-10 h-10 flex items-center justify-center font-bold mb-4">2</div>
+                <h3 class="text-lg font-semibold mb-2">Add Books</h3>
+                <p class="text-center text-gray-600">Add books to your collection as you read them.</p>
+            </div>
+            
+            <div class="flex flex-col items-center">
+                <div class="bg-indigo-100 text-indigo-800 rounded-full w-10 h-10 flex items-center justify-center font-bold mb-4">3</div>
+                <h3 class="text-lg font-semibold mb-2">Track & Review</h3>
+                <p class="text-center text-gray-600">Rate books, write reviews, and build your reading history.</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-12 text-center">
+        <h2 class="text-2xl font-bold mb-6">Ready to start tracking your books?</h2>
+        <div class="flex justify-center gap-4">
+            <a href="/register" class="bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors">
+                Get Started Today
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

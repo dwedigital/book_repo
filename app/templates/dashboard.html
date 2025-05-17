@@ -1,0 +1,454 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div x-data="{
+    showAddBook: false,
+    showAddRecord: false,
+    selectedBook: null,
+    books: [],
+    records: [],
+    user: {},
+    userBooks: [],
+    newBook: {
+        title: '',
+        author: '',
+        year: '',
+        genre: ''
+    },
+    newRecord: {
+        book_id: '',
+        rating: 0,
+        review: ''
+    },
+    
+    // Auth-related methods
+    logout() {
+        localStorage.removeItem('access_token');
+        window.location.href = '/login';
+    },
+    
+    // Data fetching methods
+    async fetchUser() {
+        try {
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                window.location.href = '/login';
+                return;
+            }
+            
+            const response = await fetch('/users/me', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!response.ok) {
+                // If token is invalid, redirect to login
+                if (response.status === 401) {
+                    localStorage.removeItem('access_token');
+                    window.location.href = '/login';
+                    return;
+                }
+                throw new Error('Failed to fetch user data');
+            }
+            
+            this.user = await response.json();
+        } catch (error) {
+            console.error('Error fetching user:', error);
+        }
+    },
+    async fetchBooks() {
+        try {
+            const token = localStorage.getItem('access_token');
+            
+            const response = await fetch('/api/books', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch books');
+            }
+            
+            this.books = await response.json();
+            this.processUserBooks();
+        } catch (error) {
+            console.error('Error fetching books:', error);
+        }
+    },
+    async fetchRecords() {
+        try {
+            const token = localStorage.getItem('access_token');
+            
+            const response = await fetch('/api/records', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch records');
+            }
+            
+            this.records = await response.json();
+            this.processUserBooks();
+        } catch (error) {
+            console.error('Error fetching records:', error);
+        }
+    },
+    processUserBooks() {
+        // Create a list of books that the user has in their collection
+        if (this.books.length > 0 && this.records.length > 0) {
+            // Get the set of book IDs from user's records
+            const userBookIds = new Set(this.records.map(record => record.book_id));
+            
+            // Filter the books to only include those in the user's collection
+            this.userBooks = this.books.filter(book => userBookIds.has(book.id));
+        } else {
+            this.userBooks = [];
+        }
+    },
+    
+    // Helper methods
+    getBookById(id) {
+        return this.books.find(book => book.id === id);
+    },
+    getRecordForBook(bookId) {
+        return this.records.find(record => record.book_id === bookId);
+    },
+    resetForm() {
+        this.newBook = { title: '', author: '', year: '', genre: '' };
+        this.newRecord = { book_id: '', rating: 0, review: '' };
+    },
+    
+    // Async setup
+    async init() {
+        await this.fetchUser();
+        await this.fetchBooks();
+        await this.fetchRecords();
+    }
+}" 
+x-init="init()">
+
+    <!-- Header with user info and logout -->
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h2 class="text-2xl font-bold">My Book Collection</h2>
+            <p class="text-gray-600">Welcome, <span x-text="user.username"></span>!</p>
+        </div>
+        <div class="flex space-x-4">
+            <button 
+                @click="showAddBook = true" 
+                class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
+            >
+                Add New Book
+            </button>
+            <button 
+                @click="logout" 
+                class="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300"
+            >
+                Logout
+            </button>
+        </div>
+    </div>
+
+    <!-- Book Collection Section -->
+    <div class="mb-8">
+        <h3 class="text-xl font-semibold mb-4">Books in Your Collection</h3>
+        
+        <!-- Empty State -->
+        <div x-show="userBooks.length === 0" class="bg-white p-8 rounded-lg shadow text-center">
+            <p class="text-gray-600 mb-4">You haven't added any books to your collection yet.</p>
+            <button 
+                @click="showAddBook = true" 
+                class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
+            >
+                Add Your First Book
+            </button>
+        </div>
+        
+        <!-- Book Grid -->
+        <div x-show="userBooks.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <template x-for="book in userBooks" :key="book.id">
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 x-text="book.title" class="text-xl font-bold mb-2"></h3>
+                            <p class="text-gray-600 mb-1">by <span x-text="book.author"></span></p>
+                            <p class="text-gray-600 mb-3" x-show="book.year">
+                                Year: <span x-text="book.year"></span>
+                            </p>
+                            <p class="text-gray-600 mb-4" x-show="book.genre">
+                                Genre: <span x-text="book.genre"></span>
+                            </p>
+                        </div>
+                        
+                        <!-- Delete button -->
+                        <button 
+                            @click="if(confirm('Are you sure you want to remove this book from your collection?')) { 
+                                fetch(`/api/books/${book.id}`, {
+                                    method: 'DELETE',
+                                    headers: {
+                                        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                                    }
+                                }).then(() => {
+                                    fetchBooks();
+                                    fetchRecords();
+                                });
+                            }" 
+                            class="text-red-500 hover:text-red-700"
+                            title="Remove from collection"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <template x-if="getRecordForBook(book.id)">
+                        <div class="mt-4 p-4 bg-gray-100 rounded">
+                            <div class="flex mb-2">
+                                <template x-for="i in 5" :key="i">
+                                    <span 
+                                        class="text-xl mr-1"
+                                        :class="{'text-yellow-500': i <= getRecordForBook(book.id).rating, 'text-gray-300': i > getRecordForBook(book.id).rating}"
+                                    >★</span>
+                                </template>
+                            </div>
+                            <p x-text="getRecordForBook(book.id).review" class="text-gray-700 italic"></p>
+                            <button 
+                                @click="selectedBook = book; newRecord.book_id = book.id; newRecord.rating = getRecordForBook(book.id).rating; newRecord.review = getRecordForBook(book.id).review; showAddRecord = true" 
+                                class="mt-2 text-sm text-indigo-600 hover:text-indigo-800"
+                            >
+                                Edit Rating
+                            </button>
+                        </div>
+                    </template>
+                    
+                    <template x-if="!getRecordForBook(book.id)">
+                        <button 
+                            @click="selectedBook = book; newRecord.book_id = book.id; showAddRecord = true" 
+                            class="mt-4 bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 text-sm"
+                        >
+                            Add Rating
+                        </button>
+                    </template>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Explore New Books Section -->
+    <div class="mt-12">
+        <h3 class="text-xl font-semibold mb-4">Explore Books</h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <template x-for="book in books.filter(b => !userBooks.some(ub => ub.id === b.id))" :key="book.id">
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 x-text="book.title" class="text-xl font-bold mb-2"></h3>
+                    <p class="text-gray-600 mb-1">by <span x-text="book.author"></span></p>
+                    <p class="text-gray-600 mb-3" x-show="book.year">
+                        Year: <span x-text="book.year"></span>
+                    </p>
+                    <p class="text-gray-600 mb-4" x-show="book.genre">
+                        Genre: <span x-text="book.genre"></span>
+                    </p>
+                    
+                    <button 
+                        @click="selectedBook = book; newRecord.book_id = book.id; showAddRecord = true" 
+                        class="mt-4 bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 text-sm"
+                    >
+                        Add to My Collection
+                    </button>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Add Book Modal -->
+    <div x-show="showAddBook" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showAddBook = false">
+        <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md" @click.stop>
+            <h3 class="text-xl font-bold mb-4">Add New Book</h3>
+            
+            <form @submit.prevent="
+                const token = localStorage.getItem('access_token');
+                const formData = new FormData();
+                formData.append('title', newBook.title);
+                formData.append('author', newBook.author);
+                if (newBook.year) formData.append('year', newBook.year);
+                if (newBook.genre) formData.append('genre', newBook.genre);
+                
+                fetch('/api/books', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                })
+                .then(response => {
+                    if (response.ok) return response.json();
+                    throw new Error('Failed to add book');
+                })
+                .then(data => {
+                    showAddBook = false;
+                    resetForm();
+                    fetchBooks();
+                })
+                .catch(error => {
+                    console.error('Error adding book:', error);
+                });
+            ">
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2" for="title">Title</label>
+                    <input 
+                        id="title" 
+                        type="text" 
+                        x-model="newBook.title" 
+                        class="w-full px-3 py-2 border rounded"
+                        required
+                    >
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2" for="author">Author</label>
+                    <input 
+                        id="author" 
+                        type="text" 
+                        x-model="newBook.author" 
+                        class="w-full px-3 py-2 border rounded"
+                        required
+                    >
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2" for="year">Year</label>
+                    <input 
+                        id="year" 
+                        type="number" 
+                        x-model="newBook.year" 
+                        class="w-full px-3 py-2 border rounded"
+                    >
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2" for="genre">Genre</label>
+                    <input 
+                        id="genre" 
+                        type="text" 
+                        x-model="newBook.genre" 
+                        class="w-full px-3 py-2 border rounded"
+                    >
+                </div>
+                
+                <div class="flex justify-end gap-2">
+                    <button 
+                        type="button" 
+                        @click="showAddBook = false; resetForm()" 
+                        class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        type="submit" 
+                        class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                    >
+                        Add Book
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Rating Modal -->
+    <div x-show="showAddRecord" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showAddRecord = false">
+        <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md" @click.stop>
+            <h3 class="text-xl font-bold mb-4" x-text="getRecordForBook(newRecord.book_id) ? 'Edit Rating' : 'Add to My Collection'"></h3>
+            <p class="mb-4" x-show="selectedBook">
+                <span x-text="selectedBook?.title"></span> by <span x-text="selectedBook?.author"></span>
+            </p>
+            
+            <form @submit.prevent="
+                const token = localStorage.getItem('access_token');
+                const formData = new FormData();
+                formData.append('book_id', newRecord.book_id);
+                formData.append('rating', newRecord.rating);
+                if (newRecord.review) formData.append('review', newRecord.review);
+                
+                fetch('/api/records', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                })
+                .then(response => {
+                    if (response.ok) return response.json();
+                    throw new Error('Failed to add record');
+                })
+                .then(data => {
+                    showAddRecord = false;
+                    resetForm();
+                    fetchRecords();
+                })
+                .catch(error => {
+                    console.error('Error adding record:', error);
+                });
+            ">
+                <input type="hidden" x-model="newRecord.book_id">
+                
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2">Rating</label>
+                    <div class="flex space-x-1">
+                        <template x-for="i in 5" :key="i">
+                            <button 
+                                type="button"
+                                @click="newRecord.rating = i" 
+                                class="text-2xl focus:outline-none"
+                                :class="{'text-yellow-500': i <= newRecord.rating, 'text-gray-300': i > newRecord.rating}"
+                            >★</button>
+                        </template>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2" for="review">Review</label>
+                    <textarea 
+                        id="review" 
+                        x-model="newRecord.review" 
+                        class="w-full px-3 py-2 border rounded"
+                        rows="4"
+                    ></textarea>
+                </div>
+                
+                <div class="flex justify-end gap-2">
+                    <button 
+                        type="button" 
+                        @click="showAddRecord = false; resetForm()" 
+                        class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        type="submit" 
+                        class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                        x-text="getRecordForBook(newRecord.book_id) ? 'Update Rating' : 'Add to Collection'"
+                    >
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- No Books State -->
+    <div x-show="books.length === 0" class="mt-12 bg-white p-8 rounded-lg shadow text-center">
+        <p class="text-gray-600 mb-4">There are no books in the database yet.</p>
+        <button 
+            @click="showAddBook = true" 
+            class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
+        >
+            Add the First Book
+        </button>
+    </div>
+</div>
+{% endblock %}
